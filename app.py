@@ -1,14 +1,36 @@
 import streamlit as st
-from bedrock_client import get_bedrock_client
+import boto3
 import json
 
 st.set_page_config(page_title="Claude Chat", page_icon="🤖")
-st.title("🧠 Claude v2 Chatbot")
+st.title("🧠 Claude v2 Chat (Bring Your Own AWS Keys)")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# Step 1: Ask for AWS keys from user
+with st.sidebar:
+    st.header("🔐 AWS Credentials")
+    aws_access_key_id = st.text_input("Access Key ID", type="password")
+    aws_secret_access_key = st.text_input("Secret Access Key", type="password")
+    aws_region = st.text_input("AWS Region", value="us-east-1")
+
+# Step 2: Check if keys are provided
+if not (aws_access_key_id and aws_secret_access_key and aws_region):
+    st.warning("Please enter your AWS credentials in the sidebar.")
+    st.stop()
+
+# Step 3: Create Bedrock client
+def get_bedrock_client():
+    return boto3.client(
+        service_name="bedrock-runtime",
+        region_name=aws_region,
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key
+    )
 
 client = get_bedrock_client()
+
+# Step 4: Chat app logic
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 def invoke_claude(prompt):
     body = json.dumps({
@@ -30,7 +52,7 @@ def invoke_claude(prompt):
     response_body = json.loads(response["body"].read())
     return response_body["completion"]
 
-# Chat interface
+# Display chat
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
